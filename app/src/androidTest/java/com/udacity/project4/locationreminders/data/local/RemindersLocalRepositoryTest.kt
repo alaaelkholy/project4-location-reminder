@@ -25,6 +25,7 @@ import org.robolectric.annotation.Config
 //Medium Test to test the repository
 @MediumTest
 class RemindersLocalRepositoryTest {
+    // Executes the tasks .
 
     @get:Rule
     var instantExecutorRule = InstantTaskExecutorRule()
@@ -33,6 +34,7 @@ class RemindersLocalRepositoryTest {
     private lateinit var remindersDatabase: RemindersDatabase
     private lateinit var remindersLocalRepository: RemindersLocalRepository
 
+    // Use in-memory database to delete the data when finish
     @Before
     fun setupRepository() {
         application = ApplicationProvider.getApplicationContext()
@@ -44,8 +46,9 @@ class RemindersLocalRepositoryTest {
 
     @Test
     fun insertEqualsRetrieve() = runBlocking {
+        // GIVEN - A new reminder saved in the database.
         val reminder = ReminderDTO("Title", "Description", "Location", 19.0, 20.2)
-
+        // reminder retrieved by ID, then reminder is returned.
         remindersLocalRepository.saveReminder(reminder)
         val reminder2: Result.Success<ReminderDTO> = remindersLocalRepository.getReminder(reminder.id) as Result.Success
 

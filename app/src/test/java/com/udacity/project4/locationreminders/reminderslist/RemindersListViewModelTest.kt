@@ -11,9 +11,11 @@ import com.udacity.project4.locationreminders.data.dto.ReminderDTO
 import com.udacity.project4.locationreminders.savereminder.MainCoroutineRule
 import com.udacity.project4.locationreminders.savereminder.getOrAwaitValue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.pauseDispatcher
 import kotlinx.coroutines.test.resumeDispatcher
 import kotlinx.coroutines.test.runBlockingTest
+import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers
@@ -27,56 +29,76 @@ import org.koin.core.context.stopKoin
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
+@Config(maxSdk = Build.VERSION_CODES.P)
 @ExperimentalCoroutinesApi
 class RemindersListViewModelTest {
 
+    //TODO: provide testing to the RemindersListViewModel and its live data objects
     @get:Rule
-    var mainCoroutineRule = MainCoroutineRule()
+    val instantTaskExecutorRule = InstantTaskExecutorRule()
 
     @get:Rule
-    var instantExecutorRule = InstantTaskExecutorRule()
+    val mainCoroutineRule = MainCoroutineRule()
 
-    private lateinit var application: Application
-
-    private lateinit var dataSource: FakeDataSource
-
+    private lateinit var fakeRepo: FakeDataSource
     private lateinit var remindersListViewModel: RemindersListViewModel
 
     @Before
-    fun setupViewModel() {
+    fun createRepository() {
         stopKoin()
-        application = ApplicationProvider.getApplicationContext()
-        FirebaseApp.initializeApp(application)
-        dataSource = FakeDataSource()
-        remindersListViewModel = RemindersListViewModel(application, dataSource)
+
+        fakeRepo = FakeDataSource()
+        remindersListViewModel = RemindersListViewModel(
+            ApplicationProvider.getApplicationContext(),
+            fakeRepo
+        )
     }
 
     @Test
-    fun check_loading() = mainCoroutineRule.runBlockingTest {
-        val reminder = ReminderDTO("Title", "Description", "Location", 19.0, 20.2)
-        dataSource.saveReminder(reminder)
+    fun loadRemindersWhenRemindersAreUnavailable() = runBlockingTest {
+
+        fakeRepo.setShouldReturnError(true)
+        remindersListViewModel.loadReminders()
+        assertThat(remindersListViewModel.showSnackBar.getOrAwaitValue(),
+            CoreMatchers.`is`("Reminders not found")
+        )
+
+    }
+
+    @Test
+    fun noData() = runBlockingTest {
+        fakeRepo.deleteAllReminders()
+        remindersListViewModel.loadReminders()
+
+        assertThat(remindersListViewModel.showNoData.getOrAwaitValue(), CoreMatchers.`is`(true))
+    }
+    private fun getReminder(): ReminderDTO {
+        return ReminderDTO(
+            title = "title",
+            description = "desc",
+            location = "loc",
+            latitude = 47.5456551,
+            longitude = 122.0101731)
+    }
+    @Test
+    fun showLoading_withdata() = runBlocking {
+        fakeRepo.deleteAllReminders()
+        val reminder = getReminder()
+        fakeRepo.saveReminder(reminder)
 
         mainCoroutineRule.pauseDispatcher()
-
         remindersListViewModel.loadReminders()
-        MatcherAssert.assertThat(
-            remindersListViewModel.showLoading.getOrAwaitValue(), Matchers.`is`(true)
-        )
 
+        assertThat(remindersListViewModel.showLoading.getOrAwaitValue(), CoreMatchers.`is`(true))
         mainCoroutineRule.resumeDispatcher()
-        MatcherAssert.assertThat(
-            remindersListViewModel.showLoading.getOrAwaitValue(), Matchers.`is`(false)
-        )
+
+        assertThat(remindersListViewModel.showLoading.getOrAwaitValue(), CoreMatchers.`is`(false))
+        assertThat(remindersListViewModel.showNoData.getOrAwaitValue(), CoreMatchers.`is`(false))
+
+
     }
 
-    @Test
-    fun shouldReturnError() = mainCoroutineRule.runBlockingTest {
-        dataSource.setReturnsError(true)
-        remindersListViewModel.loadReminders()
 
-        MatcherAssert.assertThat(
-            remindersListViewModel.showSnackBar.getOrAwaitValue(),
-            Matchers.`is`(Matchers.notNullValue())
-        )
-    }
+
+
 }

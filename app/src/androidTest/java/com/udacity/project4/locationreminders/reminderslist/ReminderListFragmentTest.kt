@@ -22,11 +22,14 @@ import com.udacity.project4.locationreminders.savereminder.SaveReminderViewModel
 import com.udacity.project4.util.DataBindingIdlingResource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runBlockingTest
+import org.hamcrest.CoreMatchers
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
@@ -39,84 +42,107 @@ import org.mockito.Mockito.*
 //UI Testing
 @MediumTest
 class ReminderListFragmentTest {
-    @get:Rule
-    var instantExecutorRule = InstantTaskExecutorRule()
 
-    private lateinit var application: Application
     private lateinit var repository: ReminderDataSource
-    private val dataBindingIdlingResource = DataBindingIdlingResource()
+
+    @get:Rule
+    val instantTaskExecutorRule = InstantTaskExecutorRule()
+
 
     @Before
     fun initRepository() {
+
         stopKoin()
-        application = getApplicationContext()
+
+        /**
+         * use Koin Library as a service locator
+         */
         val myModule = module {
+            //Declare a ViewModel - be later inject into Fragment with dedicated injector using by viewModel()
             viewModel {
                 RemindersListViewModel(
-                    application,
+                    getApplicationContext(),
                     get() as ReminderDataSource
                 )
             }
-            single {
-                SaveReminderViewModel(
-                    application,
-                    get() as ReminderDataSource
-                )
-            }
-            single { RemindersLocalRepository(get())  }
-            single { LocalDB.createRemindersDao(application) }
+
+            single { RemindersLocalRepository(get()) as ReminderDataSource }
+            single { LocalDB.createRemindersDao(getApplicationContext()) }
         }
 
         startKoin {
+            androidContext(getApplicationContext())
             modules(listOf(myModule))
         }
-        // Get  repository
+
         repository = GlobalContext.get().koin.get()
 
-        // clear the data
+
         runBlocking {
             repository.deleteAllReminders()
         }
     }
 
-    @After
-    fun stopKoinAfterTest() = stopKoin()
+    private fun getReminder(): ReminderDTO {
+        return ReminderDTO(
+            title = "title",
+            description = "desc",
+            location = "loc",
+            latitude = 47.5456551,
+            longitude = 122.0101731)
+    }
 
     @Test
-    fun clickOnFAB_navigatesToSaveReminder() {
-        // GIVEN - on ReminderList
-        val scenario = launchFragmentInContainer<ReminderListFragment>(Bundle(), R.style.AppTheme)
+    fun reminders_DisplayedInUi() = runBlockingTest{
+
+        val reminder = getReminder()
+        runBlocking{
+
+            repository.saveReminder(reminder)
+        }
+
+
+        launchFragmentInContainer<ReminderListFragment>(Bundle.EMPTY, R.style.AppTheme)
+
+        onView(withId(R.id.noDataTextView)).check(ViewAssertions.matches(CoreMatchers.not(isDisplayed())))
+        onView(withText(reminder.title)).check(ViewAssertions.matches(isDisplayed()))
+        onView(withText(reminder.description)).check(ViewAssertions.matches(isDisplayed()))
+        onView(withText(reminder.location)).check(ViewAssertions.matches(isDisplayed()))
+
+    }
+
+    @Test
+    fun noReminders_shows_noData() = runBlockingTest{
+
+        launchFragmentInContainer<ReminderListFragment>(Bundle.EMPTY, R.style.AppTheme)
+
+        onView(withId(R.id.noDataTextView)).check(ViewAssertions.matches(isDisplayed()))
+    }
+
+    @Test
+    fun clickOnFabIcon_navigatesTo_saveReminderFragment() {
+        val scenario =
+            launchFragmentInContainer<ReminderListFragment>(Bundle(), R.style.AppTheme)
         val navController = mock(NavController::class.java)
+
         scenario.onFragment {
             Navigation.setViewNavController(it.view!!, navController)
         }
 
         onView(withId(R.id.addReminderFAB)).perform(click())
-
         verify(navController).navigate(ReminderListFragmentDirections.toSaveReminder())
     }
 
-    @Test
-    fun twoRemindersInDB_UIshowsTwo() {
-        runBlocking {
-            repository.saveReminder(ReminderDTO("Title1", "Description1", "Location1", 15.0, 14.05))
-            repository.saveReminder(ReminderDTO("Title2", "Description2", "Location2", 25.8, 19.0))
-        }
 
-        val scenario = launchFragmentInContainer<ReminderListFragment>(Bundle(), R.style.AppTheme)
+//    TODO: test the navigation of the fragments.
 
-        onView(withText("Title1")).check(ViewAssertions.matches(isDisplayed()))
-        onView(withText("Title1")).check(ViewAssertions.matches(isDisplayed()))
-    }
 
-    @Test
-    fun emptyDB_noDataShows() {
-        runBlocking {
-            repository.deleteAllReminders()
-        }
+//    TODO: test the displayed data on the UI.
 
-        val scenario = launchFragmentInContainer<ReminderListFragment>(Bundle(), R.style.AppTheme)
 
-        onView(withId(R.id.noDataTextView)).check(ViewAssertions.matches(isDisplayed()))
-    }
+
+//    TODO: add testing for the error messages.
+
+
+
 }
