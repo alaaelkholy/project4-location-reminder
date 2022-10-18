@@ -43,25 +43,25 @@ class GeofenceTransitionsJobIntentService : JobIntentService(), CoroutineScope {
         //TODO call @sendNotification
         val  geo_event = GeofencingEvent.fromIntent(intent)
         if (geo_event?.hasError() == true){
-            Log.e(TAG, "error geo_event")
+            Log.e(TAG, "error geo_event: ${geo_event.errorCode}")
             return
         }
         if (geo_event!!.geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER) {
 
             Log.v(TAG, applicationContext.getString(R.string.geofence_entered))
 
-            geo_event.triggeringGeofences?.let { sendNotification(it) }
+            geo_event.triggeringGeofences?.forEach(::sendNotification)
 
         }
     }
 
     //TODO: get the request id of the current geofence
-    private fun sendNotification(triggeringGeofences: List<Geofence>) {
-        val requestId = triggeringGeofences[0].requestId
+    private fun sendNotification(geofence: Geofence) {
 
         val remindersLocalRepository: ReminderDataSource by inject()
         CoroutineScope(coroutineContext).launch(SupervisorJob()) {
-            val result = remindersLocalRepository.getReminder(requestId)
+            val result = remindersLocalRepository.getReminder(geofence.requestId)
+
             if (result is Result.Success<ReminderDTO>) {
                 val reminderDTO = result.data
                 sendNotification(

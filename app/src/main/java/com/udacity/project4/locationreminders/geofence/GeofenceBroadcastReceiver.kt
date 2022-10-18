@@ -13,13 +13,12 @@ import android.content.Intent
  * To do that you can use https://developer.android.com/reference/android/support/v4/app/JobIntentService to do that.
  *
  */
-const val RADIUS = 1000f
+const val RADIUS = 900f
 const val GEO_EVENT = "action geo event"
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action== GEO_EVENT){
             GeofenceTransitionsJobIntentService.enqueueWork(context, intent)
-
         }
 
     }

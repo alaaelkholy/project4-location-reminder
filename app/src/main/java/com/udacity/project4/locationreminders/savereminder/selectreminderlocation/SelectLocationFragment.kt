@@ -2,11 +2,7 @@ package com.udacity.project4.locationreminders.savereminder.selectreminderlocati
 
 
 import android.Manifest
-import android.app.Activity
-import android.content.Intent
-import android.content.IntentSender
 import android.content.pm.PackageManager
-import android.content.res.Resources
 import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
@@ -14,12 +10,8 @@ import android.util.Log
 import android.view.*
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
-import androidx.lifecycle.Transformations.map
 import androidx.navigation.fragment.findNavController
-import com.google.android.gms.common.api.ApiException
-import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -30,7 +22,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.udacity.project4.R
 import com.udacity.project4.authentication.AuthenticationActivity.Companion.TAG
 import com.udacity.project4.base.BaseFragment
-import com.udacity.project4.base.NavigationCommand
 import com.udacity.project4.databinding.FragmentSelectLocationBinding
 import com.udacity.project4.locationreminders.savereminder.SaveReminderViewModel
 import com.udacity.project4.utils.setDisplayHomeAsUpEnabled
@@ -40,18 +31,21 @@ class SelectLocationFragment : BaseFragment() ,OnMapReadyCallback{
 
     //Use Koin to get the view model of the SaveReminder
     override val _viewModel: SaveReminderViewModel by inject()
+
     private lateinit var binding: FragmentSelectLocationBinding
     private lateinit var map: GoogleMap
     private lateinit var pointOfInterest: PointOfInterest
-    private lateinit var lassLocation: Location
-    val zoomLevel = 18f
-    val pyramids = LatLng(29.979320463801766, 31.134389654555914)
+    private lateinit var lastLocation: Location
+
+
+    private val zoomLevel = 18f
+    private val pyramids = LatLng(29.979320463801766, 31.134389654555914)
 
 
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         binding =
             DataBindingUtil.inflate(inflater, R.layout.fragment_select_location, container, false)
 
@@ -89,6 +83,7 @@ class SelectLocationFragment : BaseFragment() ,OnMapReadyCallback{
             _viewModel.latitude.value = pointOfInterest.latLng.latitude
             _viewModel.longitude.value = pointOfInterest.latLng.longitude
             _viewModel.reminderSelectedLocationStr.value = pointOfInterest.name
+            _viewModel.selectedPOI.value = pointOfInterest
             findNavController().popBackStack()
         } else {
             val toast = Toast.makeText(context, resources.getString(R.string.select_location), Toast.LENGTH_LONG)
@@ -177,12 +172,12 @@ class SelectLocationFragment : BaseFragment() ,OnMapReadyCallback{
                 locationResult.addOnCompleteListener(requireActivity()) { task ->
                     if (task.isSuccessful) {
                         if (task.result != null) {
-                            lassLocation = task.result!!
+                            lastLocation = task.result!!
                             map.moveCamera(
                                 CameraUpdateFactory.newLatLngZoom(
                                     LatLng(
-                                        lassLocation.latitude,
-                                        lassLocation.longitude
+                                        lastLocation.latitude,
+                                        lastLocation.longitude
                                     ),
                                     zoomLevel
                                 )
@@ -196,6 +191,8 @@ class SelectLocationFragment : BaseFragment() ,OnMapReadyCallback{
                                 .newLatLngZoom(pyramids, zoomLevel)
                         )
                         map.uiSettings.isMyLocationButtonEnabled = false
+                        requestPermissions(
+                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), FINE_LOCATION_ACCESS_REQUEST_CODE)
                     }
                 }
             }else->

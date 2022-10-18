@@ -1,15 +1,12 @@
 package com.udacity.project4.authentication
 
-import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
-import androidx.lifecycle.Observer
 import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.IdpResponse
 import com.google.firebase.auth.FirebaseAuth
@@ -32,9 +29,9 @@ class AuthenticationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
        binding = DataBindingUtil.setContentView(this, R.layout.activity_authentication)
 
-        val firebaseAuth = FirebaseAuth.getInstance()
+        val mAuth = FirebaseAuth.getInstance()
 
-        if (firebaseAuth.currentUser != null) {
+        if (mAuth.currentUser != null) {
             startActivity(Intent(this, RemindersActivity::class.java))
             finish()
             return
@@ -46,6 +43,7 @@ class AuthenticationActivity : AppCompatActivity() {
 
     }
 
+
     private fun launchSignInFlow() {
         val providers = arrayListOf(
             AuthUI.IdpConfig.EmailBuilder().build(),
@@ -55,6 +53,7 @@ class AuthenticationActivity : AppCompatActivity() {
         startActivityForResult(
             AuthUI.getInstance().createSignInIntentBuilder().setAvailableProviders(providers)
                 .setLogo(R.drawable.map)
+                .setIsSmartLockEnabled(false)
                 .build(),
             SIGN_IN_RESULT_CODE
         )
@@ -65,17 +64,18 @@ class AuthenticationActivity : AppCompatActivity() {
 
         if (requestCode == SIGN_IN_RESULT_CODE) {
             val response = IdpResponse.fromResultIntent(data)
-            if (resultCode == Activity.RESULT_OK) {
+            if (resultCode == RESULT_OK) {
                 Log.i(
                     ContentValues.TAG,
                     "Successfully signed in user " +
                             "${FirebaseAuth.getInstance().currentUser?.displayName}!"
                 )
 
-                val intent = Intent(this, RemindersActivity::class.java)
-                startActivity(intent)
+                startActivity(Intent(this, RemindersActivity::class.java))
+                finish()
             } else {
                 Log.i(ContentValues.TAG, "Sign in unsuccessful ${response?.error?.errorCode}")
+                Toast.makeText(this,"Sign in unsuccessful",Toast.LENGTH_LONG).show()
             }
         }
     }
